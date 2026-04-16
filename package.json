@@ -1,0 +1,47 @@
+{
+  "name": "spyt",
+  "version": "0.1.0",
+  "description": "Transfer playlists from Spotify to YouTube Music",
+  "type": "module",
+  "bin": {
+    "spyt": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ tests/"
+  },
+  "keywords": [
+    "spotify",
+    "youtube-music",
+    "playlist",
+    "transfer",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "conf": "^13.0.1",
+    "googleapis": "^171.4.0",
+    "inquirer": "^12.0.0",
+    "open": "^10.1.0",
+    "ora": "^8.1.0",
+    "spotify-web-api-node": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/spotify-web-api-node": "^5.0.11",
+    "eslint": "^9.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
