@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="spyt logo" width="180">
+</p>
+
 # spyt
 
 Transfer playlists from Spotify to YouTube Music from your terminal.
