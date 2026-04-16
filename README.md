@@ -22,18 +22,32 @@ Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com
 
 > Spotify requires `127.0.0.1`, not `localhost`, for local redirect URIs.
 
-### 2. YouTube credentials
-
-Create OAuth credentials at [console.cloud.google.com](https://console.cloud.google.com). Enable the **YouTube Data API v3**. Add `http://127.0.0.1:8902/callback` as an authorized redirect URI. You'll need the **Client ID** and **Client Secret**.
-
-### 3. Authenticate
+### 2. Authenticate
 
 ```bash
 spyt auth spotify
+```
+
+Opens your browser for an OAuth flow. Tokens are stored in your system config directory.
+
+```bash
 spyt auth youtube
 ```
 
-Each command opens your browser for an OAuth flow. Tokens are stored in your system config directory.
+YouTube Music has no public API for song search, so spyt authenticates by reusing your browser session — no Google Cloud project or API quota needed. When you run the command:
+
+1. Open [music.youtube.com](https://music.youtube.com) in a logged-in browser.
+2. Open DevTools → Network tab.
+3. Right-click any request to `music.youtube.com` → **Copy** → **Copy as cURL**.
+4. Paste it when prompted (an editor opens).
+
+Alternatively, save the cURL command to a file and pass it directly:
+
+```bash
+spyt auth youtube --headers-file ./ytm.curl
+```
+
+Cookies are stored in `~/.config/spyt/` with restricted permissions. Re-run this command if you get auth errors — cookies typically last a few weeks.
 
 ## Usage
 
