@@ -3,7 +3,6 @@
 import { Command } from 'commander';
 import { registerAuthCommands } from './auth.js';
 import { registerTransferCommand } from './transfer.js';
-import { registerListCommand } from './list.js';
 import { registerReportCommand } from './report.js';
 import { setLogLevel } from '../utils/logger.js';
 
@@ -22,7 +21,6 @@ program
 
 registerAuthCommands(program);
 registerTransferCommand(program);
-registerListCommand(program);
 registerReportCommand(program);
 
 program.parse();

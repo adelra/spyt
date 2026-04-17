@@ -18,7 +18,8 @@ export interface TransferState {
 }
 
 function getStateDir(): string {
-  const dir = path.join(os.homedir(), '.config', 'spyt', 'transfers');
+  const dir =
+    process.env.SPYT_STATE_DIR ?? path.join(os.homedir(), '.config', 'spyt', 'transfers');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

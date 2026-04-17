@@ -10,10 +10,19 @@ import {
   listTransfers,
 } from '../../src/transfer/state.js';
 
-const TEST_DIR = path.join(os.tmpdir(), 'spyt-test-transfers');
-
-// Override the state directory for tests by using env or we'll just test the functions
 describe('TransferState', () => {
+  let testDir: string;
+
+  beforeEach(() => {
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spyt-test-transfers-'));
+    process.env.SPYT_STATE_DIR = testDir;
+  });
+
+  afterEach(() => {
+    delete process.env.SPYT_STATE_DIR;
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
   it('creates a state with correct initial values', () => {
     const state = createTransferState('playlist123', 'My Playlist', 50);
 

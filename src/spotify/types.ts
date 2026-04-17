@@ -17,9 +17,3 @@ export interface SpotifyPlaylist {
   uri: string;
   url: string;
 }
-
-export interface SpotifyTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-}
