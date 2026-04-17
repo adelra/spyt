@@ -20,25 +20,13 @@ npx spyt transfer https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
 
 ## Setup
 
-### 1. Spotify credentials
-
-Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard). Add `http://127.0.0.1:8901/callback` as a redirect URI. You'll need the **Client ID**.
-
-> Spotify requires `127.0.0.1`, not `localhost`, for local redirect URIs.
-
-### 2. Authenticate
-
-```bash
-spyt auth spotify
-```
-
-Opens your browser for an OAuth flow. Tokens are stored in your system config directory.
+spyt only needs one auth step — for YouTube Music. Spotify playlists are read anonymously from their public pages, so no Spotify account, Client ID, or OAuth is required.
 
 ```bash
 spyt auth youtube
 ```
 
-YouTube Music has no public API for song search, so spyt authenticates by reusing your browser session — no Google Cloud project or API quota needed. When you run the command:
+YouTube Music has no public API for song search, so spyt reuses your browser session — no Google Cloud project or API quota needed.
 
 1. Open [music.youtube.com](https://music.youtube.com) in a logged-in browser.
 2. Open DevTools → Network tab.
@@ -67,16 +55,10 @@ spyt transfer https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
 spyt transfer https://open.spotify.com/playlist/... --dry-run
 ```
 
-### Transfer all your playlists
+### Skip the confirmation prompt
 
 ```bash
-spyt transfer --all
-```
-
-### Browse and pick playlists interactively
-
-```bash
-spyt list
+spyt transfer <url> --yes
 ```
 
 ### Resume an interrupted transfer
@@ -92,6 +74,14 @@ spyt report --list
 spyt report <transfer-id>
 spyt report <transfer-id> --json -o report.json
 spyt report <transfer-id> --csv -o report.csv
+```
+
+### Debug logging
+
+Pass `--verbose` before any command to enable debug output:
+
+```bash
+spyt --verbose transfer <url>
 ```
 
 ## How matching works

@@ -64,7 +64,7 @@ export function formatError(err: unknown): string {
   if (typeof err === 'object' && err !== null) {
     const obj = err as Record<string, unknown>;
 
-    // spotify-web-api-node WebapiError: has statusCode + body on the Error instance
+    // HTTP-like errors with statusCode + body
     if (typeof obj.statusCode === 'number') {
       const body = obj.body as Record<string, unknown> | undefined;
       const apiError = body?.error as Record<string, unknown> | undefined;
