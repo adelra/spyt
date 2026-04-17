@@ -20,8 +20,6 @@ export function parseDurationText(text: string): number {
   return 0;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Parse YTM search response into YouTubeVideo[].
  *
@@ -154,5 +152,3 @@ export function parsePlaylistEditResponse(data: unknown): boolean {
   // The response typically has a status field or returns the actions
   return root?.status === 'STATUS_SUCCEEDED' || !!root?.actions;
 }
-
-/* eslint-enable @typescript-eslint/no-explicit-any */

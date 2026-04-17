@@ -1,5 +1,4 @@
 import ora from 'ora';
-import chalk from 'chalk';
 import { matchTrack } from '../matching/engine.js';
 import { createPlaylist, addVideoToPlaylist } from '../youtube/client.js';
 import { getPlaylist, getPlaylistTracks } from '../spotify/client.js';
