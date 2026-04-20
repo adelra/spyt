@@ -18,38 +18,6 @@ export function parseSpotifyUrl(url: string): { type: 'playlist'; id: string } |
   return null;
 }
 
-// --- Anonymous token (from embed pages) ---
-
-let cachedToken: { value: string; expiresAt: number } | null = null;
-
-async function getAnonymousToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return cachedToken.value;
-  }
-
-  // Any embed page includes an anonymous access token
-  const res = await fetch(`${EMBED_BASE}/track/4cOdK2wGLETKBW3PvgPWqT`, {
-    headers: { 'User-Agent': USER_AGENT },
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Spotify embed page (HTTP ${res.status})`);
-  }
-
-  const html = await res.text();
-  const match = html.match(/"accessToken":"([^"]+)"/);
-  if (!match) {
-    throw new Error('Could not extract Spotify access token from embed page');
-  }
-
-  cachedToken = {
-    value: match[1],
-    expiresAt: Date.now() + 50 * 60 * 1000,
-  };
-  return cachedToken.value;
-}
-
 // --- Embed page helpers ---
 
 function trackIdFromUri(uri: string): string {
@@ -112,9 +80,6 @@ async function fetchPlaylistEmbed(
   }
 
   const token = tokenMatch[1];
-  // Update global token cache too
-  cachedToken = { value: token, expiresAt: Date.now() + 50 * 60 * 1000 };
-
   const result = { data: entity as PlaylistEmbedData, token };
   playlistEmbedCache.set(playlistId, { ...result, fetchedAt: Date.now() });
   return result;
@@ -272,7 +237,7 @@ export async function getPlaylistTracks(
 
   // Fetch remaining track details from individual embed pages (5 concurrent)
   logger.debug(`Fetching details for ${remainingIds.length} additional tracks...`);
-  const extraTracks = await fetchTrackDetailsBatch(remainingIds, 5, (done, batchTotal) => {
+  const extraTracks = await fetchTrackDetailsBatch(remainingIds, 5, (done) => {
     onProgress?.(embedTracks.length + done, total);
   });
 

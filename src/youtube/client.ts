@@ -47,6 +47,7 @@ async function ytmFetch(endpoint: string, body: Record<string, unknown>): Promis
     if (err instanceof TypeError) {
       throw new Error(
         `Network error connecting to YouTube Music: ${err.message}. Check your internet connection.`,
+        { cause: err },
       );
     }
     throw err;
