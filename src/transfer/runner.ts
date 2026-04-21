@@ -73,8 +73,10 @@ export async function transferPlaylist(
   spinner.start('Adding tracks to YouTube playlist...');
   let added = 0;
   for (const result of matchedResults) {
+    const videoId = result.youtubeVideo!.id;
     try {
-      await addVideoToPlaylist(ytPlaylist.id, result.youtubeVideo!.id);
+      await addVideoToPlaylist(ytPlaylist.id, videoId);
+      state.addedYoutubeVideoIds.push(videoId);
       added++;
       spinner.text = `Adding tracks... (${added}/${matchedResults.length})`;
     } catch (err) {
@@ -124,19 +126,23 @@ export async function resumeTransfer(state: TransferState): Promise<TransferStat
     spinner.succeed(`Created playlist: ${ytPlaylist.url}`);
   }
 
-  // Add unprocessed matched tracks
-  const matchedResults = state.results.filter((r) => r.youtubeVideo !== null);
-  spinner.start('Adding remaining tracks...');
+  // Add unprocessed matched tracks (skip any already added on a prior run)
+  const alreadyAdded = new Set(state.addedYoutubeVideoIds);
+  const pending = state.results.filter(
+    (r) => r.youtubeVideo !== null && !alreadyAdded.has(r.youtubeVideo.id),
+  );
+  spinner.start(`Adding ${pending.length} remaining tracks...`);
   let added = 0;
-  for (const result of matchedResults) {
+  for (const result of pending) {
+    const videoId = result.youtubeVideo!.id;
     try {
-      await addVideoToPlaylist(state.youtubePlaylistId, result.youtubeVideo!.id);
+      await addVideoToPlaylist(state.youtubePlaylistId, videoId);
+      state.addedYoutubeVideoIds.push(videoId);
       added++;
-      spinner.text = `Adding tracks... (${added}/${matchedResults.length})`;
+      spinner.text = `Adding tracks... (${added}/${pending.length})`;
     } catch (err) {
-      // May be duplicate — that's ok on resume
-      logger.debug(
-        `Skipped/failed "${result.spotifyTrack.name}": ${formatError(err)}`,
+      logger.warn(
+        `Failed to add "${result.spotifyTrack.name}": ${formatError(err)}`,
       );
     }
 

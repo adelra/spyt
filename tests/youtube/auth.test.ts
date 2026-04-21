@@ -62,10 +62,16 @@ describe('extractSAPISID', () => {
     );
   });
 
-  it('prefers __Secure-3PAPISID over SAPISID', () => {
+  it('prefers SAPISID over __Secure-3PAPISID (SAPISIDHASH scheme)', () => {
     expect(
       extractSAPISID('SAPISID=regular; __Secure-3PAPISID=secure; SSID=xyz'),
-    ).toBe('secure');
+    ).toBe('regular');
+  });
+
+  it('does not confuse __Secure-3PAPISID substring with SAPISID', () => {
+    expect(
+      extractSAPISID('HSID=abc; __Secure-3PAPISID=secure_value; SSID=xyz'),
+    ).toBe('secure_value');
   });
 
   it('throws when neither SAPISID nor __Secure-3PAPISID present', () => {
