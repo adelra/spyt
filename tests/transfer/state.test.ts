@@ -8,6 +8,8 @@ import {
   loadState,
   getLatestInProgressTransfer,
   listTransfers,
+  STATE_SCHEMA_VERSION,
+  CorruptStateFileError,
 } from '../../src/transfer/state.js';
 
 describe('TransferState', () => {
@@ -27,6 +29,7 @@ describe('TransferState', () => {
     const state = createTransferState('playlist123', 'My Playlist', 50);
 
     expect(state.id).toBeTruthy();
+    expect(state.schemaVersion).toBe(STATE_SCHEMA_VERSION);
     expect(state.spotifyPlaylistId).toBe('playlist123');
     expect(state.spotifyPlaylistName).toBe('My Playlist');
     expect(state.totalTracks).toBe(50);
@@ -34,6 +37,43 @@ describe('TransferState', () => {
     expect(state.results).toEqual([]);
     expect(state.status).toBe('in_progress');
     expect(state.youtubePlaylistId).toBeNull();
+  });
+
+  it('persists the schema version to disk', () => {
+    const state = createTransferState('pl_schema', 'Schema Test', 1);
+    const raw = fs.readFileSync(path.join(testDir, `${state.id}.json`), 'utf-8');
+    expect(JSON.parse(raw).schemaVersion).toBe(STATE_SCHEMA_VERSION);
+  });
+
+  it('throws CorruptStateFileError when loading a file with invalid JSON', () => {
+    const badId = 'corrupt_invalid_json';
+    fs.writeFileSync(path.join(testDir, `${badId}.json`), '{ not valid json');
+    expect(() => loadState(badId)).toThrow(CorruptStateFileError);
+  });
+
+  it('throws CorruptStateFileError when loading a file with unknown schema version', () => {
+    const badId = 'corrupt_old_schema';
+    fs.writeFileSync(
+      path.join(testDir, `${badId}.json`),
+      JSON.stringify({ schemaVersion: 99, id: badId, status: 'in_progress' }),
+    );
+    expect(() => loadState(badId)).toThrow(CorruptStateFileError);
+  });
+
+  it('skips corrupt files in listTransfers and getLatestInProgressTransfer', () => {
+    fs.writeFileSync(path.join(testDir, 'bogus.json'), '{ not valid json');
+    fs.writeFileSync(
+      path.join(testDir, 'wrongschema.json'),
+      JSON.stringify({ schemaVersion: 99, id: 'wrongschema', status: 'in_progress' }),
+    );
+
+    const good = createTransferState('good_pl', 'Good', 1);
+
+    const all = listTransfers();
+    expect(all.map((t) => t.id)).toEqual([good.id]);
+
+    const latest = getLatestInProgressTransfer();
+    expect(latest?.id).toBe(good.id);
   });
 
   it('saves and loads state round-trip', () => {

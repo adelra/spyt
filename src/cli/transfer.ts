@@ -5,6 +5,7 @@ import { transferPlaylist, resumeTransfer } from '../transfer/runner.js';
 import { getLatestInProgressTransfer } from '../transfer/state.js';
 import * as logger from '../utils/logger.js';
 import { formatError } from '../utils/logger.js';
+import { ExitCode, classifyError } from '../utils/exit-codes.js';
 
 export function registerTransferCommand(program: Command): void {
   program
@@ -21,7 +22,7 @@ export function registerTransferCommand(program: Command): void {
           const parsed = parseSpotifyUrl(spotifyUrl);
           if (!parsed) {
             logger.error('Invalid Spotify playlist URL');
-            process.exit(1);
+            process.exit(ExitCode.InvalidInput);
           }
 
           if (!options.yes && !options.dryRun) {
@@ -36,15 +37,20 @@ export function registerTransferCommand(program: Command): void {
             if (!confirm) return;
           }
 
-          await transferPlaylist(parsed.id, {
+          const state = await transferPlaylist(parsed.id, {
             dryRun: options.dryRun,
             yes: options.yes,
           });
+
+          const failed = state.results.filter((r) => r.youtubeVideo === null).length;
+          if (!options.dryRun && failed > 0 && failed < state.results.length) {
+            process.exit(ExitCode.Partial);
+          }
         } catch (err) {
           logger.error(
             `Transfer failed: ${formatError(err)}`,
           );
-          process.exit(1);
+          process.exit(classifyError(err));
         }
       },
     );
@@ -69,7 +75,7 @@ export function registerTransferCommand(program: Command): void {
         logger.error(
           `Resume failed: ${formatError(err)}`,
         );
-        process.exit(1);
+        process.exit(classifyError(err));
       }
     });
 }
