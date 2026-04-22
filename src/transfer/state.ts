@@ -16,6 +16,7 @@ export interface TransferState {
   totalTracks: number;
   completedTracks: number;
   results: MatchResult[];
+  addedYoutubeVideoIds: string[];
   status: 'in_progress' | 'completed' | 'failed';
   createdAt: string;
   updatedAt: string;
@@ -90,6 +91,7 @@ export function createTransferState(
     totalTracks,
     completedTracks: 0,
     results: [],
+    addedYoutubeVideoIds: [],
     status: 'in_progress',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

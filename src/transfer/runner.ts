@@ -96,8 +96,10 @@ export async function transferPlaylist(
   spinner.start('Adding tracks to YouTube playlist...');
   let added = 0;
   for (const result of uniqueResults) {
+    const videoId = result.youtubeVideo!.id;
     try {
-      await addVideoToPlaylist(ytPlaylist.id, result.youtubeVideo!.id);
+      await addVideoToPlaylist(ytPlaylist.id, videoId);
+      state.addedYoutubeVideoIds.push(videoId);
       added++;
       spinner.text = `Adding tracks... (${added}/${uniqueResults.length})`;
     } catch (err) {
@@ -147,8 +149,11 @@ export async function resumeTransfer(state: TransferState): Promise<TransferStat
     spinner.succeed(`Created playlist: ${ytPlaylist.url}`);
   }
 
-  // Add unprocessed matched tracks
-  const matchedResults = state.results.filter((r) => r.youtubeVideo !== null);
+  // Add unprocessed matched tracks: skip any already added on a prior run, then dedupe within this run.
+  const alreadyAdded = new Set(state.addedYoutubeVideoIds);
+  const matchedResults = state.results.filter(
+    (r) => r.youtubeVideo !== null && !alreadyAdded.has(r.youtubeVideo.id),
+  );
   const { unique: uniqueResults, duplicateCount } = dedupeByVideoId(matchedResults);
   if (duplicateCount > 0) {
     logger.info(
@@ -156,17 +161,18 @@ export async function resumeTransfer(state: TransferState): Promise<TransferStat
     );
   }
 
-  spinner.start('Adding remaining tracks...');
+  spinner.start(`Adding ${uniqueResults.length} remaining tracks...`);
   let added = 0;
   for (const result of uniqueResults) {
+    const videoId = result.youtubeVideo!.id;
     try {
-      await addVideoToPlaylist(state.youtubePlaylistId, result.youtubeVideo!.id);
+      await addVideoToPlaylist(state.youtubePlaylistId, videoId);
+      state.addedYoutubeVideoIds.push(videoId);
       added++;
       spinner.text = `Adding tracks... (${added}/${uniqueResults.length})`;
     } catch (err) {
-      // May be duplicate — that's ok on resume
-      logger.debug(
-        `Skipped/failed "${result.spotifyTrack.name}": ${formatError(err)}`,
+      logger.warn(
+        `Failed to add "${result.spotifyTrack.name}": ${formatError(err)}`,
       );
     }
 

@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
+import path from 'node:path';
 import { loadState, listTransfers } from '../transfer/state.js';
 import { formatReport, toJSON, toCSV } from '../transfer/report.js';
 import * as logger from '../utils/logger.js';
@@ -54,8 +55,17 @@ export function registerReportCommand(program: Command): void {
           }
 
           if (options.output) {
-            fs.writeFileSync(options.output, output);
-            logger.success(`Report written to ${options.output}`);
+            const outPath = path.resolve(options.output);
+            // Refuse to overwrite anything that isn't a regular file (dirs, /dev/*, sockets, etc.)
+            if (fs.existsSync(outPath)) {
+              const stat = fs.lstatSync(outPath);
+              if (!stat.isFile()) {
+                logger.error(`Refusing to write: ${outPath} is not a regular file.`);
+                process.exit(1);
+              }
+            }
+            fs.writeFileSync(outPath, output);
+            logger.success(`Report written to ${outPath}`);
           } else {
             console.log(output);
           }

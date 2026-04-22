@@ -1,4 +1,5 @@
 import type { SpotifyTrack } from '../spotify/types.js';
+import type { YouTubeVideo } from '../youtube/types.js';
 import type { MatchResult } from './types.js';
 import { findYouTubeMatch } from '../youtube/search.js';
 import { scoreResult } from './scoring.js';
@@ -17,12 +18,17 @@ export async function matchTrack(track: SpotifyTrack): Promise<MatchResult> {
     };
   }
 
-  // Check ISRC results first (they get 'exact' confidence)
+  // Check ISRC results first (they can earn 'exact' confidence).
+  // We require a title-similarity floor to guard against karaoke / covers / re-recordings
+  // that can share an ISRC with the original recording.
+  const ISRC_TITLE_SIMILARITY_FLOOR = 0.5;
   const isrcResults = searchResults.filter((r) => r.method === 'isrc');
   if (isrcResults.length > 0) {
     const scored = scoreResult(track, isrcResults[0].video);
-    // ISRC matches with reasonable duration match get 'exact' confidence
-    if (scored.details.durationDelta < 10_000) {
+    if (
+      scored.details.durationDelta < 10_000 &&
+      scored.details.titleSimilarity >= ISRC_TITLE_SIMILARITY_FLOOR
+    ) {
       return {
         spotifyTrack: track,
         youtubeVideo: isrcResults[0].video,
@@ -30,12 +36,17 @@ export async function matchTrack(track: SpotifyTrack): Promise<MatchResult> {
         matchMethod: 'isrc',
       };
     }
+    logger.debug(
+      `ISRC candidate rejected for "${track.name}" (titleSim=${scored.details.titleSimilarity.toFixed(2)}, durationDelta=${scored.details.durationDelta}ms); falling back to search.`,
+    );
   }
 
-  // Score all search results and pick the best
-  const searchVideos = searchResults
-    .filter((r) => r.method === 'search')
-    .map((r) => r.video);
+  // Score all search results (plus any ISRC candidates that didn't clear the floor) and pick the best.
+  const byId = new Map<string, YouTubeVideo>();
+  for (const r of searchResults) {
+    byId.set(r.video.id, r.video);
+  }
+  const searchVideos = [...byId.values()];
 
   if (searchVideos.length === 0) {
     return {
