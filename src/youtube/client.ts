@@ -60,8 +60,9 @@ async function ytmFetch(endpoint: string, body: Record<string, unknown>): Promis
   }
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`YouTube Music API error (${response.status}): ${text}`);
+    // Do not include the response body: YTM errors can echo request context
+    // (including the Cookie header) and we don't want that reaching logs/stdout.
+    throw new Error(`YouTube Music API error (HTTP ${response.status})`);
   }
 
   return response.json();

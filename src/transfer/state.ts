@@ -12,6 +12,7 @@ export interface TransferState {
   totalTracks: number;
   completedTracks: number;
   results: MatchResult[];
+  addedYoutubeVideoIds: string[];
   status: 'in_progress' | 'completed' | 'failed';
   createdAt: string;
   updatedAt: string;
@@ -41,6 +42,7 @@ export function createTransferState(
     totalTracks,
     completedTracks: 0,
     results: [],
+    addedYoutubeVideoIds: [],
     status: 'in_progress',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -58,7 +60,12 @@ export function saveState(state: TransferState): void {
 export function loadState(id: string): TransferState | null {
   const file = statePath(id);
   if (!fs.existsSync(file)) return null;
-  return JSON.parse(fs.readFileSync(file, 'utf-8')) as TransferState;
+  return normalizeState(JSON.parse(fs.readFileSync(file, 'utf-8')) as TransferState);
+}
+
+function normalizeState(state: TransferState): TransferState {
+  state.addedYoutubeVideoIds ??= [];
+  return state;
 }
 
 export function getLatestInProgressTransfer(): TransferState | null {
@@ -69,9 +76,9 @@ export function getLatestInProgressTransfer(): TransferState | null {
   let latest: TransferState | null = null;
 
   for (const file of files) {
-    const state = JSON.parse(
-      fs.readFileSync(path.join(dir, file), 'utf-8'),
-    ) as TransferState;
+    const state = normalizeState(
+      JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8')) as TransferState,
+    );
     if (state.status !== 'in_progress') continue;
     if (!latest || state.updatedAt > latest.updatedAt) {
       latest = state;
@@ -88,6 +95,8 @@ export function listTransfers(): TransferState[] {
   return fs
     .readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
-    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8')) as TransferState)
+    .map((f) =>
+      normalizeState(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8')) as TransferState),
+    )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
