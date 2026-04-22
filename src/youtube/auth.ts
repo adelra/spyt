@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 import inquirer from 'inquirer';
 import * as logger from '../utils/logger.js';
 import { getYTMusicHeaders, setYTMusicHeaders, restrictConfigPermissions } from '../utils/config.js';
@@ -7,12 +8,13 @@ import { YTM_ORIGIN, YTM_CLIENT_NAME, YTM_CLIENT_VERSION } from './constants.js'
 import type { YTMusicHeaders } from './types.js';
 
 const STALE_WARNING_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_HEADERS_FILE_BYTES = 1 * 1024 * 1024; // 1 MiB — cURL commands are a few KB at most
 
 export async function authenticateYTMusic(headersFile?: string): Promise<YTMusicHeaders> {
   let input: string;
 
   if (headersFile) {
-    input = fs.readFileSync(headersFile, 'utf-8');
+    input = readHeadersFile(headersFile);
   } else {
     console.log(`
 YouTube Music Authentication
@@ -56,6 +58,33 @@ Steps:
 
   logger.warn('Cookies are stored in ~/.config/spyt/. Keep this directory private.');
   return headers;
+}
+
+function readHeadersFile(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(resolved);
+  } catch {
+    throw new Error(`Headers file not found: ${resolved}`);
+  }
+  if (!stat.isFile()) {
+    throw new Error(`Headers file is not a regular file: ${resolved}`);
+  }
+  if (stat.size > MAX_HEADERS_FILE_BYTES) {
+    throw new Error(
+      `Headers file is too large (${stat.size} bytes, max ${MAX_HEADERS_FILE_BYTES}).`,
+    );
+  }
+  // Use a bounded read so non-regular files reporting size 0 (/dev/zero, pipes) can't OOM us.
+  const fd = fs.openSync(resolved, 'r');
+  try {
+    const buf = Buffer.alloc(MAX_HEADERS_FILE_BYTES);
+    const bytesRead = fs.readSync(fd, buf, 0, MAX_HEADERS_FILE_BYTES, 0);
+    return buf.subarray(0, bytesRead).toString('utf-8');
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 export function getValidYTMusicHeaders(): YTMusicHeaders {
@@ -123,12 +152,13 @@ export function parseHeadersFromInput(input: string): string {
 }
 
 export function extractSAPISID(cookie: string): string {
-  // Try __Secure-3PAPISID first (used by newer Google auth), then SAPISID
-  const secure3Match = /__Secure-3PAPISID=([^;]+)/.exec(cookie);
-  if (secure3Match) return secure3Match[1];
-
-  const sapisidMatch = /SAPISID=([^;]+)/.exec(cookie);
+  // The "SAPISIDHASH" authorization scheme is computed from the SAPISID cookie specifically.
+  // __Secure-3PAPISID pairs with SAPISID3PHASH (a different scheme), so use it only as a fallback.
+  const sapisidMatch = /(?:^|;\s*)SAPISID=([^;]+)/.exec(cookie);
   if (sapisidMatch) return sapisidMatch[1];
+
+  const secure3Match = /(?:^|;\s*)__Secure-3PAPISID=([^;]+)/.exec(cookie);
+  if (secure3Match) return secure3Match[1];
 
   throw new Error(
     'Could not find SAPISID in cookies. Make sure you are logged into YouTube Music ' +
