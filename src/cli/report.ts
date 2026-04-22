@@ -5,6 +5,7 @@ import { loadState, listTransfers } from '../transfer/state.js';
 import { formatReport, toJSON, toCSV } from '../transfer/report.js';
 import * as logger from '../utils/logger.js';
 import { formatError } from '../utils/logger.js';
+import { ExitCode, classifyError } from '../utils/exit-codes.js';
 
 export function registerReportCommand(program: Command): void {
   program
@@ -41,7 +42,7 @@ export function registerReportCommand(program: Command): void {
           const state = loadState(transferId);
           if (!state) {
             logger.error(`Transfer "${transferId}" not found.`);
-            process.exit(1);
+            process.exit(ExitCode.InvalidInput);
           }
 
           let output: string;
@@ -72,7 +73,7 @@ export function registerReportCommand(program: Command): void {
           logger.error(
             `Report failed: ${formatError(err)}`,
           );
-          process.exit(1);
+          process.exit(classifyError(err));
         }
       },
     );

@@ -11,6 +11,22 @@ import { formatReport } from './report.js';
 import * as logger from '../utils/logger.js';
 import { formatError } from '../utils/logger.js';
 import type { SpotifyTrack } from '../spotify/types.js';
+import type { MatchResult } from '../matching/types.js';
+
+// Keep first occurrence per YouTube video ID, preserving Spotify order.
+export function dedupeByVideoId(
+  results: MatchResult[],
+): { unique: MatchResult[]; duplicateCount: number } {
+  const seen = new Set<string>();
+  const unique: MatchResult[] = [];
+  for (const r of results) {
+    const id = r.youtubeVideo?.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    unique.push(r);
+  }
+  return { unique, duplicateCount: results.length - unique.length };
+}
 
 const BATCH_SIZE = 10;
 
@@ -60,6 +76,13 @@ export async function transferPlaylist(
     return state;
   }
 
+  const { unique: uniqueResults, duplicateCount } = dedupeByVideoId(matchedResults);
+  if (duplicateCount > 0) {
+    logger.info(
+      `Skipping ${duplicateCount} duplicate track${duplicateCount === 1 ? '' : 's'} before adding to YTM`,
+    );
+  }
+
   spinner.start(`Creating YouTube playlist "${playlist.name}"...`);
   const ytPlaylist = await createPlaylist(
     playlist.name,
@@ -72,13 +95,13 @@ export async function transferPlaylist(
   // 6. Add tracks in batches
   spinner.start('Adding tracks to YouTube playlist...');
   let added = 0;
-  for (const result of matchedResults) {
+  for (const result of uniqueResults) {
     const videoId = result.youtubeVideo!.id;
     try {
       await addVideoToPlaylist(ytPlaylist.id, videoId);
       state.addedYoutubeVideoIds.push(videoId);
       added++;
-      spinner.text = `Adding tracks... (${added}/${matchedResults.length})`;
+      spinner.text = `Adding tracks... (${added}/${uniqueResults.length})`;
     } catch (err) {
       logger.warn(
         `Failed to add "${result.spotifyTrack.name}": ${formatError(err)}`,
@@ -93,7 +116,7 @@ export async function transferPlaylist(
 
   state.status = 'completed';
   saveState(state);
-  spinner.succeed(`Added ${added}/${matchedResults.length} tracks`);
+  spinner.succeed(`Added ${added}/${uniqueResults.length} tracks`);
 
   console.log(formatReport(state));
   logger.success(`Playlist available at: ${ytPlaylist.url}`);
@@ -126,20 +149,27 @@ export async function resumeTransfer(state: TransferState): Promise<TransferStat
     spinner.succeed(`Created playlist: ${ytPlaylist.url}`);
   }
 
-  // Add unprocessed matched tracks (skip any already added on a prior run)
+  // Add unprocessed matched tracks: skip any already added on a prior run, then dedupe within this run.
   const alreadyAdded = new Set(state.addedYoutubeVideoIds);
-  const pending = state.results.filter(
+  const matchedResults = state.results.filter(
     (r) => r.youtubeVideo !== null && !alreadyAdded.has(r.youtubeVideo.id),
   );
-  spinner.start(`Adding ${pending.length} remaining tracks...`);
+  const { unique: uniqueResults, duplicateCount } = dedupeByVideoId(matchedResults);
+  if (duplicateCount > 0) {
+    logger.info(
+      `Skipping ${duplicateCount} duplicate track${duplicateCount === 1 ? '' : 's'} before adding to YTM`,
+    );
+  }
+
+  spinner.start(`Adding ${uniqueResults.length} remaining tracks...`);
   let added = 0;
-  for (const result of pending) {
+  for (const result of uniqueResults) {
     const videoId = result.youtubeVideo!.id;
     try {
       await addVideoToPlaylist(state.youtubePlaylistId, videoId);
       state.addedYoutubeVideoIds.push(videoId);
       added++;
-      spinner.text = `Adding tracks... (${added}/${pending.length})`;
+      spinner.text = `Adding tracks... (${added}/${uniqueResults.length})`;
     } catch (err) {
       logger.warn(
         `Failed to add "${result.spotifyTrack.name}": ${formatError(err)}`,
